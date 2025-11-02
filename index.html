@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Konoha Quest — Mobile Optimized</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- MENU -->
+  <div id="menu" class="menu-animated">
+    <div class="menu-glow"></div>
+    <h1 class="neon-text">Konoha Quest</h1>
+    <p class="subtitle">A Legendary Maze Adventure</p>
+    <div class="mode-buttons">
+      <button id="easyBtn" class="mode-btn easy">Easy Mode</button>
+      <button id="hardBtn" class="mode-btn hard">Hard Mode</button>
+    </div>
+    <div class="menu-info">
+      <div id="bestScore">🏆 Best Score: 0</div>
+      <p class="hint">Use the joystick or arrow keys to move!</p>
+    </div>
+    <div class="menu-footer">
+      <p>Developed by <span class="highlight">https://github.com/bala-obito</span> </p>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="game" class="hidden">
+    <div id="hud">
+      <div id="scoreBoard">Score: <span id="score">0</span></div>
+      <div id="level">Level: 1</div>
+      <div id="lives">❤️ ❤️ ❤️</div>
+    </div>
+    <div id="controls">
+      <button id="saveBtn">💾 Save</button>
+      <button id="restartBtn">🔄 Restart</button>
+      <button id="resetBtn">🧹 Reset</button>
+      <button id="pauseBtn">⏸️ Pause</button>
+      <button id="resumeBtn" class="hidden">▶️ Resume</button>
+      <button id="menuBtn">🏠 Menu</button>
+    </div>
+    <div id="boardWrap"><div id="board"></div></div>
+
+    <!-- JOYSTICK -->
+    <div id="joystickWrap" class="hidden">
+      <div id="joystickBase"><div id="joystickStick"></div></div>
+    </div>
+  </div>
+
+  <!-- OVERLAY -->
+  <div id="overlay" class="hidden">
+    <div id="overlayContent">
+      <h2 id="overlayTitle"></h2>
+      <p id="overlayMsg"></p>
+      <div class="overlayButtons">
+        <button id="retryBtn">Retry</button>
+        <button id="menuOverlayBtn">Menu</button>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
