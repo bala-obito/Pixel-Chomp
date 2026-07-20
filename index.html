@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Konoha Quest — Shadow Maze</title>
+<meta name="description" content="A ninja maze adventure. Collect kunai, dodge shinobi, escape the Shadow Maze." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0a0e1a;
+  --ink-2:#111a2e;
+  --panel:#141d33;
+  --wall:#1c2a4a;
+  --wall-edge:#3a5a9c;
+  --paper:#f4ecd8;
+  --chakra:#3ec6ff;
+  --chakra-2:#0f7fd6;
+  --leaf:#ff7a1a;
+  --leaf-2:#ff3d5a;
+  --gold:#ffcf5c;
+  --danger:#ff3d5a;
+  --text-dim:#9db0d6;
+  --radius:18px;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.55);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overscroll-behavior:none;}
+body{
+  font-family:"Rubik",sans-serif;
+  background:
+    radial-gradient(circle at 15% -10%, rgba(62,198,255,.14), transparent 45%),
+    radial-gradient(circle at 110% 30%, rgba(255,122,26,.14), transparent 45%),
+    var(--ink);
+  color:var(--paper);
+  min-height:100vh;
+  overflow-x:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+}
+:focus-visible{outline:2px solid var(--chakra);outline-offset:3px;border-radius:6px;}
+.hidden{display:none!important;}
+
+.grain{
+  position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.04;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.screen{width:100%;display:flex;align-items:center;justify-content:center;z-index:2;}
+
+/* ============ MENU ============ */
+.menu-card{
+  position:relative;width:100%;max-width:640px;padding:48px 40px 34px;
+  border-radius:var(--radius);
+  background:linear-gradient(180deg, rgba(20,29,51,.92), rgba(10,14,26,.92));
+  border:1px solid rgba(62,198,255,.18);
+  box-shadow:var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,.04);
+  text-align:center;
+  backdrop-filter:blur(8px);
+  animation:cardIn .6s cubic-bezier(.2,.9,.25,1) both;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px) scale(.98);}to{opacity:1;transform:none;}}
+
+.emblem{width:76px;height:76px;margin:0 auto 18px;}
+.leaf-emblem{width:100%;height:100%;filter:drop-shadow(0 0 10px rgba(255,122,26,.45));}
+.emblem-ring{fill:none;stroke:var(--wall-edge);stroke-width:3;}
+.emblem-leaf{fill:var(--leaf);opacity:.95;}
+.emblem-leaf-2{fill:var(--chakra);opacity:.85;}
+
+.eyebrow{
+  font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--text-dim);margin-bottom:10px;font-weight:600;
+}
+.title{
+  font-family:"Bungee",cursive;
+  font-size:clamp(34px,6vw,52px);
+  line-height:1.05;
+  letter-spacing:.01em;
+  background:linear-gradient(180deg,#fff, #cfe9ff 55%, var(--chakra));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 30px rgba(62,198,255,.25);
+  margin-bottom:12px;
+}
+.subtitle{color:var(--text-dim);font-size:15px;font-weight:400;margin-bottom:30px;}
+
+.mode-buttons{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+@media(max-width:520px){.mode-buttons{grid-template-columns:1fr;}}
+
+.mode-btn{
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  padding:16px 18px;border-radius:14px;border:1px solid transparent;
+  cursor:pointer;color:#fff;text-align:left;
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  font-family:inherit;
+}
+.mode-btn.easy{background:linear-gradient(155deg,#1a6fb0,#0e3d70);box-shadow:0 8px 20px rgba(14,61,112,.45);}
+.mode-btn.hard{background:linear-gradient(155deg,#e0432f,#8f1030);box-shadow:0 8px 20px rgba(143,16,48,.45);}
+.mode-btn:hover, .mode-btn:focus-visible{transform:translateY(-3px);}
+.mode-btn.easy:hover{box-shadow:0 12px 26px rgba(14,127,214,.5);border-color:rgba(62,198,255,.5);}
+.mode-btn.hard:hover{box-shadow:0 12px 26px rgba(255,61,90,.5);border-color:rgba(255,61,90,.5);}
+.mode-rank{font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.75;font-weight:600;}
+.mode-name{font-size:19px;font-weight:700;}
+.mode-desc{font-size:12.5px;opacity:.85;font-weight:400;}
+
+.continue-btn{
+  width:100%;padding:12px;margin-bottom:22px;border-radius:12px;
+  background:rgba(255,207,92,.1);border:1px solid rgba(255,207,92,.35);
+  color:var(--gold);font-weight:600;font-size:14px;cursor:pointer;
+  transition:background .18s ease;
+}
+.continue-btn:hover{background:rgba(255,207,92,.18);}
+
+.menu-info{border-top:1px solid rgba(157,176,214,.15);padding-top:18px;}
+.best-score{font-size:15px;font-weight:600;color:var(--gold);margin-bottom:6px;}
+.hint{font-size:12.5px;color:var(--text-dim);}
+.menu-footer{margin-top:26px;color:#6d7ea6;font-size:12px;}
+.highlight{color:var(--chakra);font-weight:600;}
+
+/* ============ GAME ============ */
+#game{
+  flex-direction:column;gap:12px;width:100%;max-width:640px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  touch-action:pan-x pan-y;
+  padding-bottom:210px;
+}
+@media(max-width:520px){#game{padding-bottom:190px;}}
+#controls button{touch-action:manipulation;min-height:40px;}
+#hud{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;padding:12px 18px;border-radius:14px;
+  background:rgba(20,29,51,.85);border:1px solid rgba(62,198,255,.15);
+  box-shadow:var(--shadow-lg);
+}
+.hud-stat{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px;}
+.hud-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);font-weight:600;}
+.hud-value{font-size:20px;font-weight:800;font-family:"Bungee",cursive;color:var(--paper);}
+#lives{flex-direction:row;gap:4px;min-width:auto;}
+#lives .life{font-size:18px;filter:drop-shadow(0 0 4px rgba(255,122,26,.5));transition:opacity .3s, transform .3s;}
+#lives .life.lost{opacity:.15;transform:scale(.7);}
+
+#controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%;}
+#controls button{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 14px;font-size:13px;font-weight:600;border:1px solid rgba(62,198,255,.18);
+  border-radius:10px;background:rgba(20,29,51,.85);color:var(--paper);cursor:pointer;
+  transition:background .15s ease, transform .15s ease;
+}
+#controls button:hover{background:rgba(62,198,255,.16);transform:translateY(-1px);}
+#controls button span{font-size:12px;}
+
+#boardWrap{
+  display:flex;align-items:center;justify-content:center;
+  padding:14px;border-radius:16px;
+  background:radial-gradient(circle at 50% 0%, rgba(62,198,255,.06), transparent 60%), var(--panel);
+  border:1px solid rgba(62,198,255,.15);
+  box-shadow:var(--shadow-lg), inset 0 0 40px rgba(0,0,0,.4);
+}
+#board{
+  display:grid;
+  gap:var(--gap,2px);
+  border-radius:8px;
+  overflow:hidden;
+}
+.cell{background:#070b14;position:relative;}
+.wall{
+  background:linear-gradient(160deg, var(--wall), var(--wall-edge));
+  border-radius:3px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
+}
+.dot{
+  position:absolute;inset:0;margin:auto;width:34%;height:34%;
+  background:linear-gradient(160deg, var(--gold), var(--leaf));
+  clip-path:polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%);
+  filter:drop-shadow(0 0 3px rgba(255,207,92,.6));
+  animation:dotPulse 1.8s ease-in-out infinite;
+}
+@keyframes dotPulse{0%,100%{transform:scale(.9);opacity:.85;}50%{transform:scale(1.08);opacity:1;}}
+
+.pac{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--cell-size,24px) * 0.72);
+  filter:drop-shadow(0 0 6px rgba(62,198,255,.85));
+  transition:left .1s linear, top .1s linear;
+  z-index:3;
+}
+.ghost{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--cell-size,24px) * 0.62);
+  border-radius:50%;
+  z-index:2;
+  animation:ghostBob 1s ease-in-out infinite;
+}
+.ghost::after{
+  content:"";position:absolute;inset:8%;border-radius:50%;z-index:-1;opacity:.35;filter:blur(2px);
+}
+@keyframes ghostBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px);}}
+.ghost.red::after{background:#ff3d5a;}
+.ghost.blue::after{background:#3ec6ff;}
+.ghost.green::after{background:#5cff8f;}
+.ghost.purple::after{background:#b56bff;}
+.ghost.orange::after{background:#ff9a3d;}
+.ghost.cyan::after{background:#3dfff0;}
+.ghost.pink::after{background:#ff6bd6;}
+.ghost.gray::after{background:#9db0d6;}
+
+#boardWrap.shake{animation:shake .3s ease;}
+@keyframes shake{
+  10%,90%{transform:translateX(-2px);}
+  20%,80%{transform:translateX(4px);}
+  30%,50%,70%{transform:translateX(-8px);}
+  40%,60%{transform:translateX(8px);}
+}
+
+/* D-PAD — a clear, discoverable cross of arrow buttons. Press-and-hold
+   repeats movement; each button is an independent touch target so two
+   fingers (e.g. diagonal-ish play) never fight each other. */
+#dpad{
+  position:fixed;right:20px;bottom:20px;
+  bottom:calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index:60;
+  display:grid;
+  grid-template-columns:60px 60px 60px;
+  grid-template-rows:60px 60px 60px;
+  gap:6px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+@media(max-width:520px){
+  #dpad{grid-template-columns:54px 54px 54px;grid-template-rows:54px 54px 54px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom, 0px));}
+}
+.dpad-up{grid-column:2;grid-row:1;}
+.dpad-left{grid-column:1;grid-row:2;}
+.dpad-center{grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center;font-size:22px;opacity:.5;filter:drop-shadow(0 0 6px rgba(62,198,255,.4));}
+.dpad-right{grid-column:3;grid-row:2;}
+.dpad-down{grid-column:2;grid-row:3;}
+
+.dpad-btn{
+  display:flex;align-items:center;justify-content:center;
+  border-radius:14px;
+  background:linear-gradient(160deg, rgba(20,29,51,.92), rgba(10,14,26,.92));
+  border:1px solid rgba(62,198,255,.28);
+  box-shadow:0 8px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
+  cursor:pointer;
+  touch-action:none;
+  transition:transform .08s ease, background .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.dpad-btn svg{width:22px;height:22px;fill:var(--chakra);filter:drop-shadow(0 0 4px rgba(62,198,255,.5));transition:fill .12s ease;}
+.dpad-btn:active,
+.dpad-btn.pressed{
+  transform:scale(.9);
+  background:linear-gradient(160deg, rgba(255,122,26,.35), rgba(20,29,51,.92));
+  border-color:rgba(255,122,26,.6);
+  box-shadow:0 4px 10px rgba(0,0,0,.5), 0 0 18px rgba(255,122,26,.35);
+}
+.dpad-btn.pressed svg{fill:var(--leaf);}
+
+/* OVERLAY */
+#overlay{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,7,14,.78);backdrop-filter:blur(4px);
+  opacity:0;transition:opacity .3s;pointer-events:none;z-index:100;
+}
+#overlay:not(.hidden){opacity:1;pointer-events:all;}
+#overlayContent{
+  background:linear-gradient(180deg, rgba(20,29,51,.96), rgba(10,14,26,.96));
+  border:1px solid rgba(62,198,255,.2);
+  padding:34px 36px;border-radius:18px;text-align:center;
+  box-shadow:var(--shadow-lg);max-width:340px;
+  animation:cardIn .35s ease both;
+}
+#overlayIcon{font-size:40px;margin-bottom:6px;}
+#overlayTitle{font-family:"Bungee",cursive;font-size:24px;margin-bottom:8px;color:var(--paper);}
+#overlayMsg{color:var(--text-dim);font-size:14px;margin-bottom:20px;}
+.overlayButtons{display:flex;gap:10px;justify-content:center;}
+.overlayButtons button{
+  padding:10px 20px;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;
+  transition:transform .15s ease;
+}
+.overlayButtons button:hover{transform:translateY(-2px);}
+#retryBtn{background:linear-gradient(135deg,var(--chakra),var(--chakra-2));color:#04101f;}
+#menuOverlayBtn{background:rgba(255,255,255,.08);color:var(--paper);border:1px solid rgba(255,255,255,.15);}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;}
+}
+
+  </style>
+</head>
+<body>
+
+<div class="grain"></div>
+
+<!-- MENU -->
+<main id="menu" class="screen">
+  <div class="menu-card">
+    <div class="emblem" aria-hidden="true">
+      <svg viewBox="0 0 100 100" class="leaf-emblem">
+        <circle cx="50" cy="50" r="46" class="emblem-ring"/>
+        <path class="emblem-leaf" d="M50 14 C68 14 82 30 82 50 C82 68 66 86 50 86 C56 68 56 34 50 14 Z"/>
+        <path class="emblem-leaf emblem-leaf-2" d="M50 14 C32 14 18 30 18 50 C18 68 34 86 50 86 C44 68 44 34 50 14 Z"/>
+      </svg>
+    </div>
+
+    <p class="eyebrow">Hidden Leaf Trials · Maze Scroll No. 7</p>
+    <h1 class="title">Konoha&nbsp;Quest</h1>
+    <p class="subtitle">Navigate the Shadow Maze. Collect kunai. Evade the shinobi.</p>
+
+    <div class="mode-buttons" role="group" aria-label="Select difficulty">
+      <button id="easyBtn" class="mode-btn easy" type="button">
+        <span class="mode-rank">Genin</span>
+        <span class="mode-name">Easy Mode</span>
+        <span class="mode-desc">Slower shinobi · fewer of them</span>
+      </button>
+      <button id="hardBtn" class="mode-btn hard" type="button">
+        <span class="mode-rank">Jōnin</span>
+        <span class="mode-name">Hard Mode</span>
+        <span class="mode-desc">Faster shinobi · they hunt you</span>
+      </button>
+    </div>
+
+    <button id="continueBtn" class="continue-btn hidden" type="button">↻ Continue Saved Run</button>
+
+    <div class="menu-info">
+      <div id="bestScore" class="best-score">🏆 Best Score: 0</div>
+      <p class="hint">Arrow keys or the on-screen D-pad move your ninja through the maze.</p>
+    </div>
+
+    <p class="menu-footer">Crafted by <span class="highlight">github.com/bala-obito</span></p>
+  </div>
+</main>
+
+<!-- GAME -->
+<div id="game" class="screen hidden">
+  <header id="hud">
+    <div class="hud-stat">
+      <span class="hud-label">Score</span>
+      <span id="score" class="hud-value" aria-live="polite">0</span>
+    </div>
+    <div class="hud-stat">
+      <span class="hud-label">Rank</span>
+      <span id="level" class="hud-value">Lv. 1</span>
+    </div>
+    <div class="hud-stat" id="lives" aria-label="Lives remaining">
+      <span class="life">🍥</span><span class="life">🍥</span><span class="life">🍥</span>
+    </div>
+  </header>
+
+  <div id="controls">
+    <button id="pauseBtn" type="button" title="Pause">⏸️ <span>Pause</span></button>
+    <button id="resumeBtn" class="hidden" type="button" title="Resume">▶️ <span>Resume</span></button>
+    <button id="saveBtn" type="button" title="Save run">💾 <span>Save</span></button>
+    <button id="restartBtn" type="button" title="New maze, same rank">🔄 <span>Reroll</span></button>
+    <button id="resetBtn" type="button" title="Clear all saved data">🧹 <span>Reset</span></button>
+    <button id="menuBtn" type="button" title="Back to menu">🏠 <span>Menu</span></button>
+  </div>
+
+  <div id="boardWrap"><div id="board" role="img" aria-label="Maze board"></div></div>
+
+  <!-- D-PAD -->
+  <div id="dpad" class="hidden" aria-hidden="true">
+    <button class="dpad-btn dpad-up" data-dir="ArrowUp" aria-label="Move up" type="button">
+      <svg viewBox="0 0 24 24"><path d="M12 5 L20 15 L4 15 Z"/></svg>
+    </button>
+    <button class="dpad-btn dpad-left" data-dir="ArrowLeft" aria-label="Move left" type="button">
+      <svg viewBox="0 0 24 24"><path d="M5 12 L15 4 L15 20 Z"/></svg>
+    </button>
+    <div class="dpad-center" aria-hidden="true">🍥</div>
+    <button class="dpad-btn dpad-right" data-dir="ArrowRight" aria-label="Move right" type="button">
+      <svg viewBox="0 0 24 24"><path d="M19 12 L9 4 L9 20 Z"/></svg>
+    </button>
+    <button class="dpad-btn dpad-down" data-dir="ArrowDown" aria-label="Move down" type="button">
+      <svg viewBox="0 0 24 24"><path d="M12 19 L4 9 L20 9 Z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div id="overlay" class="hidden">
+  <div id="overlayContent">
+    <div id="overlayIcon">💥</div>
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayMsg"></p>
+    <div class="overlayButtons">
+      <button id="retryBtn" type="button">Try Again</button>
+      <button id="menuOverlayBtn" type="button">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Konoha Quest — Shadow Maze
+   ============================================================ */
+(() => {
+  "use strict";
+
+  // Odd dimensions required for the recursive-backtracker maze algorithm.
+  const ROWS = 21, COLS = 21;
+  const SAVE_KEY = "kq_save";
+  const BEST_KEY = "kq_best";
+
+  /* ---------- DOM ---------- */
+  const menu = document.getElementById("menu");
+  const game = document.getElementById("game");
+  const boardEl = document.getElementById("board");
+  const scoreEl = document.getElementById("score");
+  const bestScoreEl = document.getElementById("bestScore");
+  const livesEl = document.getElementById("lives");
+  const levelEl = document.getElementById("level");
+  const overlay = document.getElementById("overlay");
+  const overlayTitle = document.getElementById("overlayTitle");
+  const overlayMsg = document.getElementById("overlayMsg");
+  const overlayIcon = document.getElementById("overlayIcon");
+  const retryBtn = document.getElementById("retryBtn");
+  const menuOverlayBtn = document.getElementById("menuOverlayBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const menuBtn = document.getElementById("menuBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const resumeBtn = document.getElementById("resumeBtn");
+  const continueBtn = document.getElementById("continueBtn");
+  const boardWrap = document.getElementById("boardWrap");
+  const dpad = document.getElementById("dpad");
+
+  /* ---------- state ---------- */
+  let layout = [], cells = [];
+  let pacPos = 0, score = 0, lives = 3, level = 1, collectedDots = 0, totalDots = 0;
+  let ghosts = [], ghostTimer = null, ghostSpeed = 650, paused = false, mode = "easy";
+  let moveInterval = null, currentDirection = null, inputLock = false;
+  let cellSize = 24;
+
+  const ghostColors = ["red", "blue", "green", "purple", "orange", "cyan", "pink", "gray"];
+
+  /* ---------- audio (tiny synth, no assets) ---------- */
+  let actx = null;
+  function ensureAudio() {
+    if (!actx) {
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { /* no audio */ }
+    }
+  }
+  function tone(freq, dur, type = "sine", gain = 0.05, delay = 0) {
+    if (!actx) return;
+    const t0 = actx.currentTime + delay;
+    const osc = actx.createOscillator();
+    const g = actx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    osc.connect(g).connect(actx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur);
+  }
+  const sfx = {
+    dot: () => tone(880, 0.08, "square", 0.04),
+    hit: () => { tone(220, 0.25, "sawtooth", 0.06); tone(140, 0.3, "sawtooth", 0.05, 0.08); },
+    levelUp: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.15, "triangle", 0.05, i * 0.09)); },
+    gameOver: () => { tone(180, 0.5, "sawtooth", 0.06); tone(120, 0.6, "sawtooth", 0.05, 0.15); },
+  };
+
+  /* ---------- helpers ---------- */
+  const idx = (r, c) => r * COLS + c;
+  const rc = (i) => [Math.floor(i / COLS), i % COLS];
+  const inBounds = (r, c) => r > 0 && c > 0 && r < ROWS - 1 && c < COLS - 1;
+
+  function updateBest() {
+    const b = Number(localStorage.getItem(BEST_KEY) || 0);
+    bestScoreEl.textContent = `🏆 Best Score: ${b}`;
+  }
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  /* ============================================================
+     MAZE GENERATION — recursive backtracker (guaranteed solvable)
+     Logical cells sit on odd rows/cols; walls occupy the space
+     between them. Hard mode braids in extra loops afterwards so
+     the shinobi have more than one route to the player.
+     ============================================================ */
+  function buildLayout() {
+    layout = Array(ROWS * COLS).fill(1);
+
+    const LR = (ROWS - 1) / 2, LC = (COLS - 1) / 2;
+    const visited = Array(LR * LC).fill(false);
+    const lIdx = (lr, lc) => lr * LC + lc;
+
+    const stack = [[0, 0]];
+    visited[lIdx(0, 0)] = true;
+    layout[idx(1, 1)] = 0;
+
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+    while (stack.length) {
+      const [lr, lc] = stack[stack.length - 1];
+      const options = shuffle(dirs.slice()).filter(([dr, dc]) => {
+        const nlr = lr + dr, nlc = lc + dc;
+        return nlr >= 0 && nlc >= 0 && nlr < LR && nlc < LC && !visited[lIdx(nlr, nlc)];
+      });
+      if (!options.length) { stack.pop(); continue; }
+      const [dr, dc] = options[0];
+      const nlr = lr + dr, nlc = lc + dc;
+      visited[lIdx(nlr, nlc)] = true;
+
+      const r = 2 * lr + 1, c = 2 * lc + 1;
+      const nr = 2 * nlr + 1, nc = 2 * nlc + 1;
+      layout[idx((r + nr) / 2, (c + nc) / 2)] = 0; // knock down wall between
+      layout[idx(nr, nc)] = 0;
+      stack.push([nlr, nlc]);
+    }
+
+    // Hard mode: braid in loops so shinobi have flanking routes.
+    if (mode === "hard") {
+      for (let r = 1; r < ROWS - 1; r++) {
+        for (let c = 1; c < COLS - 1; c++) {
+          if (layout[idx(r, c)] !== 1) continue;
+          const horizOpen = layout[idx(r, c - 1)] === 0 && layout[idx(r, c + 1)] === 0;
+          const vertOpen = layout[idx(r - 1, c)] === 0 && layout[idx(r + 1, c)] === 0;
+          if ((horizOpen || vertOpen) && Math.random() < 0.12) layout[idx(r, c)] = 0;
+        }
+      }
+    }
+
+    // Outer border stays solid.
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (r === 0 || c === 0 || r === ROWS - 1 || c === COLS - 1) layout[idx(r, c)] = 1;
+    }
+
+    // Spawn cell + a small clearing stay dot-free.
+    layout[idx(1, 1)] = 0;
+
+    // Every open cell becomes a collectible kunai.
+    layout = layout.map((v) => (v === 0 ? 2 : v));
+    layout[idx(1, 1)] = 0;
+    totalDots = layout.filter((x) => x === 2).length;
+  }
+
+  function openLogicalCells() {
+    // Returns actual-grid positions of all open (non-wall) cells, farthest-first from spawn.
+    const spawn = idx(1, 1);
+    const open = [];
+    for (let i = 0; i < layout.length; i++) if (layout[i] !== 1) open.push(i);
+    open.sort((a, b) => {
+      const [ar, ac] = rc(a), [br, bc] = rc(b), [sr, sc] = rc(spawn);
+      const da = Math.abs(ar - sr) + Math.abs(ac - sc);
+      const db = Math.abs(br - sr) + Math.abs(bc - sc);
+      return db - da;
+    });
+    return open;
+  }
+
+  /* ---------- rendering ---------- */
+  function computeCellSize() {
+    const wrapPadding = 28;
+    const available = Math.min(window.innerWidth - 40, 640) - wrapPadding;
+    const availableH = window.innerHeight - 230 - 190;
+    const size = Math.floor(Math.min(available, availableH) / COLS);
+    cellSize = Math.max(12, Math.min(26, size));
+    boardEl.style.setProperty("--cell-size", cellSize + "px");
+    boardEl.style.gridTemplateColumns = `repeat(${COLS}, ${cellSize}px)`;
+    boardEl.style.gridTemplateRows = `repeat(${ROWS}, ${cellSize}px)`;
+  }
+
+  function renderBoard() {
+    computeCellSize();
+    boardEl.innerHTML = "";
+    cells = [];
+    layout.forEach((v) => {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      if (v === 1) cell.classList.add("wall");
+      else if (v === 2) {
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        cell.appendChild(dot);
+      }
+      boardEl.appendChild(cell);
+      cells.push(cell);
+    });
+  }
+
+  function placePacAndGhosts() {
+    pacPos = idx(1, 1);
+    const count = mode === "easy" ? 4 : 6;
+    const spots = openLogicalCells().slice(0, count * 3);
+    shuffle(spots);
+    ghosts = [];
+    for (let i = 0; i < count && spots.length; i++) {
+      ghosts.push({ pos: spots[i % spots.length], color: ghostColors[i % ghostColors.length], lastDir: null });
+    }
+    draw();
+  }
+
+  function draw() {
+    boardEl.querySelectorAll(".pac,.ghost").forEach((n) => n.remove());
+    const p = document.createElement("div");
+    p.className = "pac";
+    p.textContent = "🍥";
+    cells[pacPos].appendChild(p);
+    ghosts.forEach((g) => {
+      const gh = document.createElement("div");
+      gh.className = "ghost " + g.color;
+      gh.textContent = "🥷";
+      cells[g.pos].appendChild(gh);
+    });
+  }
+
+  /* ---------- gameplay ---------- */
+  function startGame(selected, restored) {
+    ensureAudio();
+    mode = selected;
+    ghostSpeed = mode === "easy" ? 650 : 420;
+    overlay.classList.add("hidden");
+    menu.classList.add("hidden");
+    game.classList.remove("hidden");
+    dpad.classList.remove("hidden");
+    if (restored) {
+      applyRestoredState(restored);
+    } else {
+      initGame();
+    }
+  }
+
+  function initGame() {
+    clearInterval(ghostTimer);
+    score = 0; lives = 3; level = 1; collectedDots = 0;
+    scoreEl.textContent = score;
+    updateLives();
+    levelEl.textContent = `Lv. ${level}`;
+    buildLayout();
+    renderBoard();
+    placePacAndGhosts();
+    paused = false;
+    ghostTimer = setInterval(moveGhosts, ghostSpeed);
+    setupJoystick();
+  }
+
+  function applyRestoredState(saved) {
+    mode = saved.mode;
+    ghostSpeed = saved.ghostSpeed;
+    score = saved.score; lives = saved.lives; level = saved.level;
+    collectedDots = saved.collectedDots;
+    layout = saved.layout;
+    totalDots = layout.filter((x) => x === 2).length + collectedDots;
+    scoreEl.textContent = score;
+    updateLives();
+    levelEl.textContent = `Lv. ${level}`;
+    renderBoard();
+    pacPos = saved.pacPos;
+    ghosts = saved.ghosts;
+    draw();
+    paused = false;
+    clearInterval(ghostTimer);
+    ghostTimer = setInterval(moveGhosts, ghostSpeed);
+    setupJoystick();
+  }
+
+  function movePac(key) {
+    if (paused) return;
+    const [r, c] = rc(pacPos);
+    let nr = r, nc = c;
+    if (key === "ArrowLeft") nc--;
+    else if (key === "ArrowRight") nc++;
+    else if (key === "ArrowUp") nr--;
+    else if (key === "ArrowDown") nr++;
+    if (!inBounds(nr, nc)) return;
+    const newPos = idx(nr, nc);
+    if (!cells[newPos] || layout[newPos] === 1) return;
+    pacPos = newPos;
+    if (layout[pacPos] === 2) {
+      layout[pacPos] = 0;
+      const d = cells[pacPos].querySelector(".dot");
+      if (d) d.remove();
+      score += 10; collectedDots++;
+      scoreEl.textContent = score;
+      sfx.dot();
+      vibrate(4);
+      checkProgress();
+    }
+    if (ghosts.some((g) => g.pos === pacPos)) loseLife();
+    draw();
+  }
+
+  function distDir(from, to) {
+    const [fr, fc] = rc(from), [tr, tc] = rc(to);
+    return { dr: tr - fr, dc: tc - fc };
+  }
+
+  function moveGhosts() {
+    if (paused) return;
+    const chaseChance = mode === "hard" ? 0.65 : 0.3;
+    ghosts.forEach((g) => {
+      const [r, c] = rc(g.pos);
+      const dirOptions = [
+        { key: "U", dr: -1, dc: 0 }, { key: "D", dr: 1, dc: 0 },
+        { key: "L", dr: 0, dc: -1 }, { key: "R", dr: 0, dc: 1 },
+      ];
+      let ordered;
+      if (Math.random() < chaseChance) {
+        const { dr, dc } = distDir(g.pos, pacPos);
+        ordered = dirOptions
+          .map((d) => ({ ...d, score: -(Math.sign(dr) === Math.sign(d.dr) && d.dr !== 0 ? 1 : 0) - (Math.sign(dc) === Math.sign(d.dc) && d.dc !== 0 ? 1 : 0) }))
+          .sort((a, b) => a.score - b.score);
+      } else {
+        ordered = shuffle(dirOptions.slice());
+      }
+      // Prefer not to reverse direction immediately, unless nothing else works.
+      const reverse = { U: "D", D: "U", L: "R", R: "L" };
+      const nonReverse = ordered.filter((d) => d.key !== reverse[g.lastDir]);
+      const tryOrder = [...nonReverse, ...ordered];
+
+      for (const d of tryOrder) {
+        const nr = r + d.dr, nc = c + d.dc;
+        if (!inBounds(nr, nc)) continue;
+        const np = idx(nr, nc);
+        if (layout[np] === 1) continue;
+        g.pos = np;
+        g.lastDir = d.key;
+        break;
+      }
+    });
+    if (ghosts.some((g) => g.pos === pacPos)) loseLife();
+    draw();
+  }
+
+  function loseLife() {
+    lives--;
+    updateLives();
+    sfx.hit();
+    vibrate([25, 40, 25]);
+    boardWrap.classList.add("shake");
+    setTimeout(() => boardWrap.classList.remove("shake"), 300);
+    if (lives <= 0) return endGame();
+    pacPos = idx(1, 1);
+  }
+
+  function updateLives() {
+    const icons = livesEl.querySelectorAll(".life");
+    icons.forEach((icon, i) => icon.classList.toggle("lost", i >= lives));
+  }
+
+  function checkProgress() {
+    if (collectedDots < totalDots) return;
+    level++;
+    ghostSpeed = Math.max(160, ghostSpeed - 90);
+    clearInterval(ghostTimer);
+    ghostTimer = setInterval(moveGhosts, ghostSpeed);
+    buildLayout();
+    renderBoard();
+    placePacAndGhosts();
+    collectedDots = 0;
+    score += 500;
+    scoreEl.textContent = score;
+    levelEl.textContent = `Lv. ${level}`;
+    sfx.levelUp();
+  }
+
+  function endGame() {
+    clearInterval(ghostTimer);
+    const best = Number(localStorage.getItem(BEST_KEY) || 0);
+    if (score > best) localStorage.setItem(BEST_KEY, String(score));
+    updateBest();
+    localStorage.removeItem(SAVE_KEY);
+    sfx.gameOver();
+    overlayIcon.textContent = "💥";
+    overlayTitle.textContent = "You Were Caught!";
+    overlayMsg.textContent = `Final score: ${score} · Reached Lv. ${level}`;
+    overlay.classList.remove("hidden");
+    retryBtn.onclick = () => startGame(mode);
+    menuOverlayBtn.onclick = goToMenu;
+  }
+
+  /* ---------- D-pad ----------
+     Four independent buttons, each with its own arrow icon. Pointer Events
+     naturally isolate touches per element, so press-and-hold repeat "just
+     works" without manual multi-touch bookkeeping. Each press gives a
+     short haptic pulse and a pressed-state glow for clear feedback. */
+  function setupJoystick() { /* kept for compatibility with older calls; no-op */ }
+
+  function vibrate(ms) {
+    if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* ignore */ } }
+  }
+
+  function bindDpad() {
+    const repeatMs = 150;
+    const activePointers = new Map(); // pointerId -> { btn, interval }
+
+    function pressStart(btn, pointerId) {
+      const dir = btn.dataset.dir;
+      btn.classList.add("pressed");
+      vibrate(6);
+      movePac(dir);
+      const interval = setInterval(() => movePac(dir), repeatMs);
+      activePointers.set(pointerId, { btn, interval });
+    }
+    function pressEnd(pointerId) {
+      const entry = activePointers.get(pointerId);
+      if (!entry) return;
+      clearInterval(entry.interval);
+      entry.btn.classList.remove("pressed");
+      activePointers.delete(pointerId);
+    }
+
+    dpad.querySelectorAll(".dpad-btn").forEach((btn) => {
+      btn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        btn.setPointerCapture(e.pointerId);
+        pressStart(btn, e.pointerId);
+      });
+      btn.addEventListener("pointerup", (e) => pressEnd(e.pointerId));
+      btn.addEventListener("pointercancel", (e) => pressEnd(e.pointerId));
+      btn.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") pressEnd(e.pointerId); });
+      btn.addEventListener("contextmenu", (e) => e.preventDefault());
+    });
+  }
+  bindDpad();
+
+  // Stop iOS/Android pull-to-refresh and rubber-banding while a game is in progress.
+  document.addEventListener("touchmove", (e) => {
+    if (!game.classList.contains("hidden")) e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener("keydown", (e) => {
+    const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+    if (!keys.includes(e.key)) return;
+    if (game.classList.contains("hidden")) return;
+    if (inputLock) return;
+    e.preventDefault();
+    movePac(e.key);
+  });
+
+  window.addEventListener("resize", () => {
+    if (!game.classList.contains("hidden")) { computeCellSize(); renderBoard(); draw(); }
+  });
+
+  /* ---------- menu / buttons ---------- */
+  document.getElementById("easyBtn").onclick = () => startGame("easy");
+  document.getElementById("hardBtn").onclick = () => startGame("hard");
+
+  continueBtn.onclick = () => {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    try { startGame(JSON.parse(raw).mode, JSON.parse(raw)); }
+    catch (e) { localStorage.removeItem(SAVE_KEY); }
+  };
+
+  saveBtn.onclick = () => {
+    const snapshot = { score, level, lives, mode, ghostSpeed, collectedDots, layout, pacPos, ghosts };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+    flashButton(saveBtn, "✅ Saved");
+  };
+  function flashButton(btn, text) {
+    const original = btn.innerHTML;
+    btn.innerHTML = text;
+    setTimeout(() => (btn.innerHTML = original), 1100);
+  }
+
+  restartBtn.onclick = () => {
+    clearInterval(ghostTimer);
+    buildLayout();
+    renderBoard();
+    placePacAndGhosts();
+    collectedDots = 0;
+    ghostTimer = setInterval(moveGhosts, ghostSpeed);
+  };
+
+  resetBtn.onclick = () => {
+    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(BEST_KEY);
+    updateBest();
+    continueBtn.classList.add("hidden");
+    flashButton(resetBtn, "🧹 Cleared");
+  };
+
+  menuBtn.onclick = goToMenu;
+  pauseBtn.onclick = () => { paused = true; pauseBtn.classList.add("hidden"); resumeBtn.classList.remove("hidden"); };
+  resumeBtn.onclick = () => { paused = false; resumeBtn.classList.add("hidden"); pauseBtn.classList.remove("hidden"); };
+
+  function goToMenu() {
+    clearInterval(ghostTimer);
+    game.classList.add("hidden");
+    menu.classList.remove("hidden");
+    overlay.classList.add("hidden");
+    dpad.classList.add("hidden");
+    updateBest();
+    refreshContinueButton();
+  }
+
+  function refreshContinueButton() {
+    const raw = localStorage.getItem(SAVE_KEY);
+    continueBtn.classList.toggle("hidden", !raw);
+  }
+
+  /* ---------- boot ---------- */
+  updateBest();
+  refreshContinueButton();
+})();
+
+  </script>
+</body>
+</html>
