@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Pixel Chomp</title>
+<meta name="description" content="A precision-engineered arcade maze game. Chomp data shards, dodge sentries, chase the high score." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#05060d;
+  --ink-2:#0a0d1c;
+  --panel:#0d1224;
+  --wall:#141c38;
+  --wall-edge:#00e5ff;
+  --paper:#e8f4ff;
+  --chakra:#00e5ff;
+  --chakra-2:#0091ff;
+  --leaf:#ff2fd0;
+  --leaf-2:#a855f7;
+  --gold:#ffd23f;
+  --danger:#ff2f6d;
+  --text-dim:#7f93c4;
+  --radius:18px;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.65);
+  --grid-line:rgba(0,229,255,.06);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overscroll-behavior:none;}
+body{
+  font-family:"Rajdhani",sans-serif;
+  background:
+    radial-gradient(circle at 15% -10%, rgba(0,229,255,.16), transparent 45%),
+    radial-gradient(circle at 110% 20%, rgba(255,47,208,.14), transparent 45%),
+    radial-gradient(circle at 50% 120%, rgba(168,85,247,.12), transparent 50%),
+    repeating-linear-gradient(0deg, var(--grid-line) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 42px),
+    var(--ink);
+  background-attachment:fixed;
+  color:var(--paper);
+  min-height:100vh;
+  overflow-x:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+}
+:focus-visible{outline:2px solid var(--chakra);outline-offset:3px;border-radius:6px;}
+.hidden{display:none!important;}
+
+.grain{
+  position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 1px, transparent 1px 3px);
+  animation:scan 9s linear infinite;
+}
+@keyframes scan{0%{background-position:0 0;}100%{background-position:0 300px;}}
+
+.screen{width:100%;display:flex;align-items:center;justify-content:center;z-index:2;}
+
+/* ============ MENU ============ */
+.menu-card{
+  position:relative;width:100%;max-width:640px;padding:48px 40px 34px;
+  border-radius:var(--radius);
+  background:linear-gradient(180deg, rgba(13,18,36,.92), rgba(5,6,13,.94));
+  border:1px solid rgba(0,229,255,.25);
+  box-shadow:var(--shadow-lg), 0 0 0 1px rgba(0,229,255,.06), inset 0 1px 0 rgba(255,255,255,.04);
+  text-align:center;
+  backdrop-filter:blur(10px);
+  animation:cardIn .6s cubic-bezier(.2,.9,.25,1) both;
+}
+.menu-card::before{
+  content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;z-index:-1;
+  background:linear-gradient(135deg, var(--chakra), var(--leaf), var(--leaf-2), var(--chakra));
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;opacity:.5;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px) scale(.98);}to{opacity:1;transform:none;}}
+
+.emblem{width:76px;height:76px;margin:0 auto 18px;}
+.leaf-emblem{width:100%;height:100%;filter:drop-shadow(0 0 12px rgba(0,229,255,.55));}
+.emblem-ring{fill:none;stroke:var(--wall-edge);stroke-width:3;}
+.emblem-leaf{fill:var(--leaf);opacity:.95;}
+.emblem-leaf-2{fill:var(--chakra);opacity:.85;}
+
+.eyebrow{
+  font-size:12px;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--chakra);margin-bottom:10px;font-weight:600;
+  font-family:"Orbitron",sans-serif;
+}
+.title{
+  font-family:"Orbitron",sans-serif;
+  font-weight:900;
+  font-size:clamp(32px,6vw,50px);
+  line-height:1.1;
+  letter-spacing:.02em;
+  background:linear-gradient(90deg,var(--chakra), var(--leaf) 55%, var(--leaf-2));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 24px rgba(0,229,255,.35));
+  margin-bottom:12px;
+}
+.subtitle{color:var(--text-dim);font-size:16px;font-weight:500;margin-bottom:30px;}
+
+.mode-buttons{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+@media(max-width:520px){.mode-buttons{grid-template-columns:1fr;}}
+
+.mode-btn{
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  padding:16px 18px;border-radius:14px;
+  cursor:pointer;color:#fff;text-align:left;
+  background:rgba(13,18,36,.7);
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  font-family:inherit;
+}
+.mode-btn.easy{border:1px solid rgba(0,229,255,.4);box-shadow:0 0 0 1px rgba(0,229,255,.08) inset, 0 8px 20px rgba(0,229,255,.08);}
+.mode-btn.hard{border:1px solid rgba(255,47,109,.45);box-shadow:0 0 0 1px rgba(255,47,109,.08) inset, 0 8px 20px rgba(255,47,109,.1);}
+.mode-btn:hover, .mode-btn:focus-visible{transform:translateY(-3px);}
+.mode-btn.easy:hover{background:rgba(0,229,255,.1);box-shadow:0 12px 26px rgba(0,229,255,.3);border-color:var(--chakra);}
+.mode-btn.hard:hover{background:rgba(255,47,109,.1);box-shadow:0 12px 26px rgba(255,47,109,.35);border-color:var(--danger);}
+.mode-rank{font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.8;font-weight:700;font-family:"Orbitron",sans-serif;}
+.mode-btn.easy .mode-rank{color:var(--chakra);}
+.mode-btn.hard .mode-rank{color:var(--danger);}
+.mode-name{font-size:20px;font-weight:700;}
+.mode-desc{font-size:12.5px;opacity:.85;font-weight:500;}
+
+.continue-btn{
+  width:100%;padding:12px;margin-bottom:22px;border-radius:12px;
+  background:rgba(255,207,92,.1);border:1px solid rgba(255,207,92,.35);
+  color:var(--gold);font-weight:600;font-size:14px;cursor:pointer;
+  transition:background .18s ease;
+}
+.continue-btn:hover{background:rgba(255,207,92,.18);}
+
+.menu-info{border-top:1px solid rgba(157,176,214,.15);padding-top:18px;}
+.best-score{font-size:15px;font-weight:600;color:var(--gold);margin-bottom:6px;}
+.hint{font-size:12.5px;color:var(--text-dim);}
+.menu-footer{margin-top:26px;color:#6d7ea6;font-size:12px;}
+.highlight{color:var(--chakra);font-weight:600;}
+
+/* ============ GAME ============ */
+#game{
+  flex-direction:column;gap:12px;width:100%;max-width:640px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  touch-action:pan-x pan-y;
+  padding-bottom:210px;
+}
+@media(max-width:520px){#game{padding-bottom:190px;}}
+#controls button{touch-action:manipulation;min-height:40px;}
+#hud{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;padding:12px 18px;border-radius:14px;
+  background:rgba(13,18,36,.85);border:1px solid rgba(0,229,255,.15);
+  box-shadow:var(--shadow-lg);
+}
+.hud-stat{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px;}
+.hud-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);font-weight:600;}
+.hud-value{font-size:20px;font-weight:800;font-family:"Orbitron",sans-serif;color:var(--paper);}
+#lives{flex-direction:row;gap:6px;min-width:auto;}
+#lives .life{
+  width:14px;height:14px;border-radius:4px;
+  background:linear-gradient(160deg, var(--gold), var(--leaf));
+  box-shadow:0 0 8px rgba(255,210,63,.7);
+  transition:opacity .3s, transform .3s;
+}
+#lives .life.lost{opacity:.15;transform:scale(.7);box-shadow:none;}
+
+#controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%;}
+#controls button{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 14px;font-size:13px;font-weight:600;border:1px solid rgba(0,229,255,.18);
+  border-radius:10px;background:rgba(13,18,36,.85);color:var(--paper);cursor:pointer;
+  transition:background .15s ease, transform .15s ease;
+}
+#controls button:hover{background:rgba(0,229,255,.16);transform:translateY(-1px);}
+#controls button span{font-size:12px;}
+#controls button svg{width:15px;height:15px;fill:var(--chakra);flex-shrink:0;}
+
+#boardWrap{
+  display:flex;align-items:center;justify-content:center;
+  padding:14px;border-radius:16px;
+  background:radial-gradient(circle at 50% 0%, rgba(0,229,255,.06), transparent 60%), var(--panel);
+  border:1px solid rgba(0,229,255,.15);
+  box-shadow:var(--shadow-lg), inset 0 0 40px rgba(0,0,0,.4);
+}
+#board{
+  display:grid;
+  gap:var(--gap,2px);
+  border-radius:8px;
+  overflow:hidden;
+}
+.cell{background:#070b14;position:relative;}
+.wall{
+  background:linear-gradient(160deg, var(--wall), var(--wall-edge));
+  border-radius:3px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
+}
+.dot{
+  position:absolute;inset:0;margin:auto;width:22%;height:22%;border-radius:50%;
+  background:linear-gradient(160deg, var(--gold), #fff2b8);
+  filter:drop-shadow(0 0 3px rgba(255,210,63,.6));
+  animation:dotPulse 1.8s ease-in-out infinite;
+}
+@keyframes dotPulse{0%,100%{transform:scale(.9);opacity:.85;}50%{transform:scale(1.08);opacity:1;}}
+.dot.orb{
+  width:58%;height:58%;
+  background:radial-gradient(circle at 35% 30%, #fff, var(--chakra) 40%, #b56bff 85%);
+  filter:drop-shadow(0 0 8px rgba(181,107,255,.9));
+  animation:orbPulse 1s ease-in-out infinite;
+}
+@keyframes orbPulse{0%,100%{transform:scale(.85);}50%{transform:scale(1.15);}}
+
+/* Pac-Man: two jaw halves that open/close, wrapper rotates to face travel direction */
+.pac{
+  position:absolute;inset:10%;z-index:3;
+  filter:drop-shadow(0 0 8px #ffd400) drop-shadow(0 0 14px rgba(255,212,0,.5));
+  transition:transform .1s linear;
+}
+.pac .jaw-top,.pac .jaw-bottom{
+  position:absolute;left:0;width:100%;height:50%;
+  background:radial-gradient(circle at 30% 30%, #fff9d6, #ffd400 55%, #ffb300 100%);
+}
+.pac .jaw-top{top:0;border-radius:100% 100% 0 0/100% 100% 0 0;transform-origin:0% 100%;animation:jawTop .32s ease-in-out infinite;}
+.pac .jaw-bottom{bottom:0;border-radius:0 0 100% 100%/0 0 100% 100%;transform-origin:0% 0%;animation:jawBottom .32s ease-in-out infinite;}
+@keyframes jawTop{0%,100%{transform:rotate(0deg);}50%{transform:rotate(-30deg);}}
+@keyframes jawBottom{0%,100%{transform:rotate(0deg);}50%{transform:rotate(30deg);}}
+.pac.powered{filter:drop-shadow(0 0 14px #fff) drop-shadow(0 0 22px #ffd400);}
+
+/* Ghosts: classic dome + zigzag-skirt silhouette with simple eyes */
+.ghost{
+  position:absolute;inset:12%;
+  clip-path:polygon(0% 100%,0% 45%,8% 25%,20% 10%,35% 2%,50% 0%,65% 2%,80% 10%,92% 25%,100% 45%,100% 100%,88% 88%,75% 100%,62% 88%,50% 100%,38% 88%,25% 100%,12% 88%);
+  z-index:2;
+  animation:ghostBob 1s ease-in-out infinite;
+}
+.ghost::before,.ghost::after{
+  content:"";position:absolute;top:32%;width:20%;height:24%;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, #14182b 22%, #fff 24% 100%);
+}
+.ghost::before{left:20%;}
+.ghost::after{left:58%;}
+@keyframes ghostBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px);}}
+.ghost.red{background:linear-gradient(160deg,#ff5c85,var(--danger));box-shadow:0 0 10px var(--danger);}
+.ghost.pink{background:linear-gradient(160deg,#ffd6f4,var(--leaf));box-shadow:0 0 10px var(--leaf);}
+.ghost.cyan{background:linear-gradient(160deg,#c2fffa,#3dfff0);box-shadow:0 0 10px #3dfff0;}
+.ghost.orange{background:linear-gradient(160deg,#ffe19b,var(--gold));box-shadow:0 0 10px var(--gold);}
+.ghost.blue{background:linear-gradient(160deg,#7bf3ff,var(--chakra));box-shadow:0 0 10px var(--chakra);}
+.ghost.green{background:linear-gradient(160deg,#a8ffce,#39ff8f);box-shadow:0 0 10px #39ff8f;}
+.ghost.purple{background:linear-gradient(160deg,#d3b3ff,var(--leaf-2));box-shadow:0 0 10px var(--leaf-2);}
+.ghost.gray{background:linear-gradient(160deg,#c7d3ec,var(--text-dim));box-shadow:0 0 10px var(--text-dim);}
+.ghost.frightened{background:linear-gradient(160deg,#ffffff,var(--chakra));box-shadow:0 0 12px var(--chakra);animation:frightFlash .35s steps(2) infinite, ghostBob 1s ease-in-out infinite;}
+@keyframes frightFlash{0%,100%{opacity:.5;}50%{opacity:.85;background:#fff;}}
+
+#boardWrap.power-active{border-color:rgba(255,207,92,.7);box-shadow:var(--shadow-lg), 0 0 30px rgba(255,207,92,.35), inset 0 0 40px rgba(0,0,0,.4);}
+#boardWrap.shake{animation:shake .3s ease;}
+@keyframes shake{
+  10%,90%{transform:translateX(-2px);}
+  20%,80%{transform:translateX(4px);}
+  30%,50%,70%{transform:translateX(-8px);}
+  40%,60%{transform:translateX(8px);}
+}
+
+/* D-PAD — a clear, discoverable cross of arrow buttons. Press-and-hold
+   repeats movement; each button is an independent touch target so two
+   fingers (e.g. diagonal-ish play) never fight each other. */
+#dpad{
+  position:fixed;right:20px;bottom:20px;
+  bottom:calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index:60;
+  display:grid;
+  grid-template-columns:60px 60px 60px;
+  grid-template-rows:60px 60px 60px;
+  gap:6px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+@media(max-width:520px){
+  #dpad{grid-template-columns:54px 54px 54px;grid-template-rows:54px 54px 54px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom, 0px));}
+}
+.dpad-up{grid-column:2;grid-row:1;}
+.dpad-left{grid-column:1;grid-row:2;}
+.dpad-center{
+  grid-column:2;grid-row:2;
+  border-radius:50%;background:var(--chakra);
+  box-shadow:0 0 10px var(--chakra);
+  animation:orbPulse 1.4s ease-in-out infinite;
+  margin:auto;width:10px;height:10px;
+}
+.dpad-right{grid-column:3;grid-row:2;}
+.dpad-down{grid-column:2;grid-row:3;}
+
+.dpad-btn{
+  display:flex;align-items:center;justify-content:center;
+  border-radius:14px;
+  background:linear-gradient(160deg, rgba(13,18,36,.92), rgba(5,6,13,.92));
+  border:1px solid rgba(0,229,255,.28);
+  box-shadow:0 8px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
+  cursor:pointer;
+  touch-action:none;
+  transition:transform .08s ease, background .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.dpad-btn svg{width:22px;height:22px;fill:var(--chakra);filter:drop-shadow(0 0 4px rgba(0,229,255,.5));transition:fill .12s ease;}
+.dpad-btn:active,
+.dpad-btn.pressed{
+  transform:scale(.9);
+  background:linear-gradient(160deg, rgba(255,47,208,.35), rgba(13,18,36,.92));
+  border-color:rgba(255,47,208,.6);
+  box-shadow:0 4px 10px rgba(0,0,0,.5), 0 0 18px rgba(255,47,208,.35);
+}
+.dpad-btn.pressed svg{fill:var(--leaf);}
+
+/* OVERLAY */
+#overlay{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,7,14,.78);backdrop-filter:blur(4px);
+  opacity:0;transition:opacity .3s;pointer-events:none;z-index:100;
+}
+#overlay:not(.hidden){opacity:1;pointer-events:all;}
+#overlayContent{
+  background:linear-gradient(180deg, rgba(13,18,36,.96), rgba(5,6,13,.96));
+  border:1px solid rgba(0,229,255,.2);
+  padding:34px 36px;border-radius:18px;text-align:center;
+  box-shadow:var(--shadow-lg);max-width:340px;
+  animation:cardIn .35s ease both;
+}
+#overlayIcon{font-size:40px;margin-bottom:6px;}
+#overlayTitle{font-family:"Orbitron",sans-serif;font-size:24px;margin-bottom:8px;color:var(--paper);}
+#overlayMsg{color:var(--text-dim);font-size:14px;margin-bottom:20px;}
+.overlayButtons{display:flex;gap:10px;justify-content:center;}
+.overlayButtons button{
+  padding:10px 20px;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;
+  transition:transform .15s ease;
+}
+.overlayButtons button:hover{transform:translateY(-2px);}
+#retryBtn{background:linear-gradient(135deg,var(--chakra),var(--chakra-2));color:#04101f;}
+#menuOverlayBtn{background:rgba(255,255,255,.08);color:var(--paper);border:1px solid rgba(255,255,255,.15);}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;}
+}
+
+  </style>
+</head>
+<body>
+
+<div class="grain"></div>
+
+<!-- MENU -->
+<main id="menu" class="screen">
+  <div class="menu-card">
+    <div class="emblem" aria-hidden="true">
+      <svg viewBox="0 0 100 100" class="leaf-emblem">
+        <circle cx="50" cy="50" r="46" class="emblem-ring"/>
+        <polygon points="50,16 79,33 79,67 50,84 21,67 21,33" class="emblem-leaf"/>
+        <circle cx="50" cy="50" r="14" class="emblem-leaf-2"/>
+        <line x1="50" y1="16" x2="50" y2="36" stroke="#05060d" stroke-width="3"/>
+        <line x1="79" y1="33" x2="62" y2="43" stroke="#05060d" stroke-width="3"/>
+        <line x1="79" y1="67" x2="62" y2="57" stroke="#05060d" stroke-width="3"/>
+        <line x1="50" y1="84" x2="50" y2="64" stroke="#05060d" stroke-width="3"/>
+        <line x1="21" y1="67" x2="38" y2="57" stroke="#05060d" stroke-width="3"/>
+        <line x1="21" y1="33" x2="38" y2="43" stroke="#05060d" stroke-width="3"/>
+      </svg>
+    </div>
+
+    <p class="eyebrow">Arcade Series · Maze 07</p>
+    <h1 class="title">Pixel&nbsp;Chomp</h1>
+    <p class="subtitle">Navigate the neon grid, chomp every data shard, and grab an energy core to turn the tables on the sentries.</p>
+
+    <div class="mode-buttons" role="group" aria-label="Select difficulty">
+      <button id="easyBtn" class="mode-btn easy" type="button">
+        <span class="mode-rank">Cadet</span>
+        <span class="mode-name">Easy Mode</span>
+        <span class="mode-desc">Slower sentries · fewer of them</span>
+      </button>
+      <button id="hardBtn" class="mode-btn hard" type="button">
+        <span class="mode-rank">Elite</span>
+        <span class="mode-name">Hard Mode</span>
+        <span class="mode-desc">Faster sentries · they hunt you</span>
+      </button>
+    </div>
+
+    <button id="continueBtn" class="continue-btn hidden" type="button">↻ Continue Saved Run</button>
+
+    <div class="menu-info">
+      <div id="bestScore" class="best-score">🏆 Best Score: 0</div>
+      <p class="hint">Arrow keys, the D-pad, or a swipe anywhere on the maze move Pixel.</p>
+    </div>
+
+    <p class="menu-footer">Crafted by <span class="highlight">github.com/bala-obito</span></p>
+  </div>
+</main>
+
+<!-- GAME -->
+<div id="game" class="screen hidden">
+  <header id="hud">
+    <div class="hud-stat">
+      <span class="hud-label">Score</span>
+      <span id="score" class="hud-value" aria-live="polite">0</span>
+    </div>
+    <div class="hud-stat">
+      <span class="hud-label">Rank</span>
+      <span id="level" class="hud-value">Lv. 1</span>
+    </div>
+    <div class="hud-stat" id="lives" aria-label="Lives remaining">
+      <span class="life"></span><span class="life"></span><span class="life"></span>
+    </div>
+  </header>
+
+  <div id="controls">
+    <button id="pauseBtn" type="button" title="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><span>Pause</span></button>
+    <button id="resumeBtn" class="hidden" type="button" title="Resume"><svg viewBox="0 0 24 24"><path d="M7 4 L20 12 L7 20 Z"/></svg><span>Resume</span></button>
+    <button id="saveBtn" type="button" title="Save run"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z" fill="none" stroke="currentColor" stroke-width="2"/><rect x="8" y="4" width="8" height="5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>Save</span></button>
+    <button id="restartBtn" type="button" title="New maze, same rank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 20v-6h6"/></svg><span>Reroll</span></button>
+    <button id="resetBtn" type="button" title="Clear all saved data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg><span>Reset</span></button>
+    <button id="menuBtn" type="button" title="Back to menu"><svg viewBox="0 0 24 24"><path d="M12 3 L21 10 V21 H15 V14 H9 V21 H3 V10 Z"/></svg><span>Menu</span></button>
+  </div>
+
+  <div id="boardWrap"><div id="board" role="img" aria-label="Maze board"></div></div>
+
+  <!-- D-PAD -->
+  <div id="dpad" class="hidden" aria-hidden="true">
+    <button class="dpad-btn dpad-up" data-dir="ArrowUp" aria-label="Move up" type="button">
+      <svg viewBox="0 0 24 24"><path d="M12 5 L20 15 L4 15 Z"/></svg>
+    </button>
+    <button class="dpad-btn dpad-left" data-dir="ArrowLeft" aria-label="Move left" type="button">
+      <svg viewBox="0 0 24 24"><path d="M5 12 L15 4 L15 20 Z"/></svg>
+    </button>
+    <div class="dpad-center" aria-hidden="true"></div>
+    <button class="dpad-btn dpad-right" data-dir="ArrowRight" aria-label="Move right" type="button">
+      <svg viewBox="0 0 24 24"><path d="M19 12 L9 4 L9 20 Z"/></svg>
+    </button>
+    <button class="dpad-btn dpad-down" data-dir="ArrowDown" aria-label="Move down" type="button">
+      <svg viewBox="0 0 24 24"><path d="M12 19 L4 9 L20 9 Z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div id="overlay" class="hidden">
+  <div id="overlayContent">
+    <div id="overlayIcon">💥</div>
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayMsg"></p>
+    <div class="overlayButtons">
+      <button id="retryBtn" type="button">Try Again</button>
+      <button id="menuOverlayBtn" type="button">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Pixel Chomp
+   ============================================================ */
+(() => {
+  "use strict";
+
+  // Odd dimensions required for the recursive-backtracker maze algorithm.
+  const ROWS = 21, COLS = 21;
+  const SAVE_KEY = "kq_save";
+  const BEST_KEY = "kq_best";
+
+  /* ---------- DOM ---------- */
+  const menu = document.getElementById("menu");
+  const game = document.getElementById("game");
+  const boardEl = document.getElementById("board");
+  const scoreEl = document.getElementById("score");
+  const bestScoreEl = document.getElementById("bestScore");
+  const livesEl = document.getElementById("lives");
+  const levelEl = document.getElementById("level");
+  const overlay = document.getElementById("overlay");
+  const overlayTitle = document.getElementById("overlayTitle");
+  const overlayMsg = document.getElementById("overlayMsg");
+  const overlayIcon = document.getElementById("overlayIcon");
+  const retryBtn = document.getElementById("retryBtn");
+  const menuOverlayBtn = document.getElementById("menuOverlayBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const menuBtn = document.getElementById("menuBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const resumeBtn = document.getElementById("resumeBtn");
+  const continueBtn = document.getElementById("continueBtn");
+  const boardWrap = document.getElementById("boardWrap");
+  const dpad = document.getElementById("dpad");
+
+  /* ---------- state ---------- */
+  let layout = [], cells = [];
+  let pacPos = 0, score = 0, lives = 3, level = 1, collectedDots = 0, totalDots = 0;
+  let pacDir = "ArrowRight";
+  let ghosts = [], ghostTimer = null, ghostSpeed = 650, paused = false, mode = "easy";
+  let moveInterval = null, currentDirection = null, inputLock = false;
+  let cellSize = 24;
+  let poweredUntil = 0, powerTimer = null;
+
+  const ghostColors = ["red", "pink", "cyan", "orange", "blue", "green", "purple", "gray"];
+
+  /* ---------- audio (tiny synth, no assets) ---------- */
+  let actx = null;
+  function ensureAudio() {
+    if (!actx) {
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { /* no audio */ }
+    }
+  }
+  function tone(freq, dur, type = "sine", gain = 0.05, delay = 0) {
+    if (!actx) return;
+    const t0 = actx.currentTime + delay;
+    const osc = actx.createOscillator();
+    const g = actx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    osc.connect(g).connect(actx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur);
+  }
+  const sfx = {
+    dot: () => tone(880, 0.08, "square", 0.04),
+    hit: () => { tone(220, 0.25, "sawtooth", 0.06); tone(140, 0.3, "sawtooth", 0.05, 0.08); },
+    levelUp: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.15, "triangle", 0.05, i * 0.09)); },
+    gameOver: () => { tone(180, 0.5, "sawtooth", 0.06); tone(120, 0.6, "sawtooth", 0.05, 0.15); },
+    power: () => { [440, 660, 880].forEach((f, i) => tone(f, 0.12, "sawtooth", 0.05, i * 0.05)); },
+    eatGhost: () => { tone(1200, 0.15, "square", 0.05); tone(1600, 0.12, "square", 0.04, 0.08); },
+  };
+
+  /* ---------- helpers ---------- */
+  const idx = (r, c) => r * COLS + c;
+  const rc = (i) => [Math.floor(i / COLS), i % COLS];
+  const inBounds = (r, c) => r > 0 && c > 0 && r < ROWS - 1 && c < COLS - 1;
+
+  function updateBest() {
+    const b = Number(localStorage.getItem(BEST_KEY) || 0);
+    bestScoreEl.textContent = `🏆 Best Score: ${b}`;
+  }
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  /* ============================================================
+     MAZE GENERATION — recursive backtracker (guaranteed solvable)
+     Logical cells sit on odd rows/cols; walls occupy the space
+     between them. Hard mode braids in extra loops afterwards so
+     the sentries have more than one route to the player.
+     ============================================================ */
+  function buildLayout() {
+    layout = Array(ROWS * COLS).fill(1);
+
+    const LR = (ROWS - 1) / 2, LC = (COLS - 1) / 2;
+    const visited = Array(LR * LC).fill(false);
+    const lIdx = (lr, lc) => lr * LC + lc;
+
+    const stack = [[0, 0]];
+    visited[lIdx(0, 0)] = true;
+    layout[idx(1, 1)] = 0;
+
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+    while (stack.length) {
+      const [lr, lc] = stack[stack.length - 1];
+      const options = shuffle(dirs.slice()).filter(([dr, dc]) => {
+        const nlr = lr + dr, nlc = lc + dc;
+        return nlr >= 0 && nlc >= 0 && nlr < LR && nlc < LC && !visited[lIdx(nlr, nlc)];
+      });
+      if (!options.length) { stack.pop(); continue; }
+      const [dr, dc] = options[0];
+      const nlr = lr + dr, nlc = lc + dc;
+      visited[lIdx(nlr, nlc)] = true;
+
+      const r = 2 * lr + 1, c = 2 * lc + 1;
+      const nr = 2 * nlr + 1, nc = 2 * nlc + 1;
+      layout[idx((r + nr) / 2, (c + nc) / 2)] = 0; // knock down wall between
+      layout[idx(nr, nc)] = 0;
+      stack.push([nlr, nlc]);
+    }
+
+    // Hard mode: braid in loops so sentries have flanking routes.
+    if (mode === "hard") {
+      for (let r = 1; r < ROWS - 1; r++) {
+        for (let c = 1; c < COLS - 1; c++) {
+          if (layout[idx(r, c)] !== 1) continue;
+          const horizOpen = layout[idx(r, c - 1)] === 0 && layout[idx(r, c + 1)] === 0;
+          const vertOpen = layout[idx(r - 1, c)] === 0 && layout[idx(r + 1, c)] === 0;
+          if ((horizOpen || vertOpen) && Math.random() < 0.12) layout[idx(r, c)] = 0;
+        }
+      }
+    }
+
+    // Outer border stays solid.
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (r === 0 || c === 0 || r === ROWS - 1 || c === COLS - 1) layout[idx(r, c)] = 1;
+    }
+
+    // Spawn cell + a small clearing stay dot-free.
+    layout[idx(1, 1)] = 0;
+
+    // Every open cell becomes a collectible data shard.
+    layout = layout.map((v) => (v === 0 ? 2 : v));
+    layout[idx(1, 1)] = 0;
+
+    // Sprinkle a handful of energy-core power orbs (value 3) into far-off dot cells.
+    const farCells = openLogicalCells().filter((i) => layout[i] === 2);
+    const orbCount = mode === "hard" ? 5 : 4;
+    farCells.slice(0, orbCount * 2).forEach((i, n) => { if (n % 2 === 0) layout[i] = 3; });
+
+    totalDots = layout.filter((x) => x === 2 || x === 3).length;
+  }
+
+  function openLogicalCells() {
+    // Returns actual-grid positions of all open (non-wall) cells, farthest-first from spawn.
+    const spawn = idx(1, 1);
+    const open = [];
+    for (let i = 0; i < layout.length; i++) if (layout[i] !== 1) open.push(i);
+    open.sort((a, b) => {
+      const [ar, ac] = rc(a), [br, bc] = rc(b), [sr, sc] = rc(spawn);
+      const da = Math.abs(ar - sr) + Math.abs(ac - sc);
+      const db = Math.abs(br - sr) + Math.abs(bc - sc);
+      return db - da;
+    });
+    return open;
+  }
+
+  /* ---------- rendering ---------- */
+  function computeCellSize() {
+    const wrapPadding = 28;
+    const available = Math.min(window.innerWidth - 40, 640) - wrapPadding;
+    const availableH = window.innerHeight - 230 - 190;
+    const size = Math.floor(Math.min(available, availableH) / COLS);
+    cellSize = Math.max(12, Math.min(26, size));
+    boardEl.style.setProperty("--cell-size", cellSize + "px");
+    boardEl.style.gridTemplateColumns = `repeat(${COLS}, ${cellSize}px)`;
+    boardEl.style.gridTemplateRows = `repeat(${ROWS}, ${cellSize}px)`;
+  }
+
+  function renderBoard() {
+    computeCellSize();
+    boardEl.innerHTML = "";
+    cells = [];
+    layout.forEach((v) => {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      if (v === 1) cell.classList.add("wall");
+      else if (v === 2 || v === 3) {
+        const dot = document.createElement("div");
+        dot.className = v === 3 ? "dot orb" : "dot";
+        cell.appendChild(dot);
+      }
+      boardEl.appendChild(cell);
+      cells.push(cell);
+    });
+  }
+
+  function placePacAndGhosts() {
+    pacPos = idx(1, 1);
+    const count = mode === "easy" ? 4 : 6;
+    const spots = openLogicalCells().slice(0, count * 3);
+    shuffle(spots);
+    ghosts = [];
+    for (let i = 0; i < count && spots.length; i++) {
+      ghosts.push({ pos: spots[i % spots.length], color: ghostColors[i % ghostColors.length], lastDir: null });
+    }
+    draw();
+  }
+
+  const dirDeg = { ArrowRight: 0, ArrowDown: 90, ArrowLeft: 180, ArrowUp: 270 };
+  function draw() {
+    boardEl.querySelectorAll(".pac,.ghost").forEach((n) => n.remove());
+    const fleeing = Date.now() < poweredUntil;
+    const p = document.createElement("div");
+    p.className = "pac" + (fleeing ? " powered" : "");
+    p.style.transform = `rotate(${dirDeg[pacDir] || 0}deg)`;
+    p.innerHTML = '<div class="jaw-top"></div><div class="jaw-bottom"></div>';
+    cells[pacPos].appendChild(p);
+    ghosts.forEach((g) => {
+      const gh = document.createElement("div");
+      gh.className = "ghost " + g.color + (fleeing ? " frightened" : "");
+      cells[g.pos].appendChild(gh);
+    });
+  }
+
+  /* ---------- gameplay ---------- */
+  function startGame(selected, restored) {
+    ensureAudio();
+    mode = selected;
+    ghostSpeed = mode === "easy" ? 650 : 420;
+    overlay.classList.add("hidden");
+    menu.classList.add("hidden");
+    game.classList.remove("hidden");
+    dpad.classList.remove("hidden");
+    if (restored) {
+      applyRestoredState(restored);
+    } else {
+      initGame();
+    }
+  }
+
+  function initGame() {
+    clearInterval(ghostTimer);
+    score = 0; lives = 3; level = 1; collectedDots = 0;
+    scoreEl.textContent = score;
+    updateLives();
+    levelEl.textContent = `Lv. ${level}`;
+    buildLayout();
+    renderBoard();
+    placePacAndGhosts();
+    paused = false;
+    ghostTimer = setInterval(moveGhosts, ghostSpeed);
+    setupJoystick();
+  }
+
+  function applyRestoredState(saved) {
+    mode = saved.mode;
+    ghostSpeed = saved.ghostSpeed;
+    score = saved.score; lives = saved.lives; level = saved.level;
+    collectedDots = saved.collectedDots;
+    layout = saved.layout;
+    totalDots = layout.filter((x) => x === 2).length + collectedDots;
+    scoreEl.textContent = score;
+    updateLives();
+    levelEl.textContent = `Lv. ${level}`;
+    renderBoard();
+    pacPos = saved.pacPos;
+    ghosts = saved.ghosts;
+    draw();
+    paused = false;
+    clearInterval(ghostTimer);
+    ghostTimer = setInterval(moveGhosts, ghostSpeed);
+    setupJoystick();
+  }
+
+  function movePac(key) {
+    if (paused) return;
+    const [r, c] = rc(pacPos);
+    let nr = r, nc = c;
+    if (key === "ArrowLeft") nc--;
+    else if (key === "ArrowRight") nc++;
+    else if (key === "ArrowUp") nr--;
+    else if (key === "ArrowDown") nr++;
+    if (!inBounds(nr, nc)) return;
+    const newPos = idx(nr, nc);
+    if (!cells[newPos] || layout[newPos] === 1) return;
+    pacPos = newPos;
+    pacDir = key;
+    if (layout[pacPos] === 2 || layout[pacPos] === 3) {
+      const wasOrb = layout[pacPos] === 3;
+      layout[pacPos] = 0;
+      const d = cells[pacPos].querySelector(".dot");
+      if (d) d.remove();
+      collectedDots++;
+      if (wasOrb) { activatePower(); score += 50; } else { score += 10; sfx.dot(); }
+      scoreEl.textContent = score;
+      vibrate(4);
+      checkProgress();
+    }
+    handleGhostCollision();
+    draw();
+  }
+
+  function activatePower() {
+    sfx.power();
+    vibrate([15, 30, 15]);
+    poweredUntil = Date.now() + 6000;
+    boardWrap.classList.add("power-active");
+    clearTimeout(powerTimer);
+    powerTimer = setTimeout(() => { poweredUntil = 0; boardWrap.classList.remove("power-active"); draw(); }, 6000);
+  }
+
+  function handleGhostCollision() {
+    const hit = ghosts.filter((g) => g.pos === pacPos);
+    if (!hit.length) return;
+    if (Date.now() < poweredUntil) {
+      hit.forEach((g) => {
+        score += 200;
+        scoreEl.textContent = score;
+        sfx.eatGhost();
+        vibrate(10);
+        const spots = openLogicalCells();
+        g.pos = spots[spots.length - 1 - Math.floor(Math.random() * 5)] || idx(1, 1);
+      });
+    } else {
+      loseLife();
+    }
+  }
+
+  function distDir(from, to) {
+    const [fr, fc] = rc(from), [tr, tc] = rc(to);
+    return { dr: tr - fr, dc: tc - fc };
+  }
+
+  function moveGhosts() {
+    if (paused) return;
+    const fleeing = Date.now() < poweredUntil;
+    const chaseChance = fleeing ? 0.7 : (mode === "hard" ? 0.65 : 0.3);
+    ghosts.forEach((g) => {
+      const [r, c] = rc(g.pos);
+      const dirOptions = [
+        { key: "U", dr: -1, dc: 0 }, { key: "D", dr: 1, dc: 0 },
+        { key: "L", dr: 0, dc: -1 }, { key: "R", dr: 0, dc: 1 },
+      ];
+      let ordered;
+      if (Math.random() < chaseChance) {
+        const { dr, dc } = distDir(g.pos, pacPos);
+        const sign = fleeing ? 1 : -1;
+        ordered = dirOptions
+          .map((d) => ({ ...d, score: sign * ((Math.sign(dr) === Math.sign(d.dr) && d.dr !== 0 ? 1 : 0) + (Math.sign(dc) === Math.sign(d.dc) && d.dc !== 0 ? 1 : 0)) }))
+          .sort((a, b) => a.score - b.score);
+      } else {
+        ordered = shuffle(dirOptions.slice());
+      }
+      // Prefer not to reverse direction immediately, unless nothing else works.
+      const reverse = { U: "D", D: "U", L: "R", R: "L" };
+      const nonReverse = ordered.filter((d) => d.key !== reverse[g.lastDir]);
+      const tryOrder = [...nonReverse, ...ordered];
+
+      for (const d of tryOrder) {
+        const nr = r + d.dr, nc = c + d.dc;
+        if (!inBounds(nr, nc)) continue;
+        const np = idx(nr, nc);
+        if (layout[np] === 1) continue;
+        g.pos = np;
+        g.lastDir = d.key;
+        break;
+      }
+    });
+    handleGhostCollision();
+    draw();
+  }
+
+  function loseLife() {
+    poweredUntil = 0;
+    clearTimeout(powerTimer);
+    boardWrap.classList.remove("power-active");
+    lives--;
+    updateLives();
+    sfx.hit();
+    vibrate([25, 40, 25]);
+    boardWrap.classList.add("shake");
+    setTimeout(() => boardWrap.classList.remove("shake"), 300);
+    if (lives <= 0) return endGame();
+    pacPos = idx(1, 1);
+  }
+
+  function updateLives() {
+    const icons = livesEl.querySelectorAll(".life");
+    icons.forEach((icon, i) => icon.classList.toggle("lost", i >= lives));
+  }
+
+  function checkProgress() {
+    if (collectedDots < totalDots) return;
+    level++;
+    ghostSpeed = Math.max(160, ghostSpeed - 90);
+    clearInterval(ghostTimer);
+    ghostTimer = setInterval(moveGhosts, ghostSpeed);
+    buildLayout();
+    renderBoard();
+    placePacAndGhosts();
+    collectedDots = 0;
+    score += 500;
+    scoreEl.textContent = score;
+    levelEl.textContent = `Lv. ${level}`;
+    sfx.levelUp();
+  }
+
+  function endGame() {
+    clearInterval(ghostTimer);
+    const best = Number(localStorage.getItem(BEST_KEY) || 0);
+    if (score > best) localStorage.setItem(BEST_KEY, String(score));
+    updateBest();
+    localStorage.removeItem(SAVE_KEY);
+    sfx.gameOver();
+    overlayIcon.textContent = "💥";
+    overlayTitle.textContent = "You Were Caught!";
+    overlayMsg.textContent = `Final score: ${score} · Reached Lv. ${level}`;
+    overlay.classList.remove("hidden");
+    retryBtn.onclick = () => startGame(mode);
+    menuOverlayBtn.onclick = goToMenu;
+  }
+
+  /* ---------- D-pad ----------
+     Four independent buttons, each with its own arrow icon. Pointer Events
+     naturally isolate touches per element, so press-and-hold repeat "just
+     works" without manual multi-touch bookkeeping. Each press gives a
+     short haptic pulse and a pressed-state glow for clear feedback. */
+  function setupJoystick() { /* kept for compatibility with older calls; no-op */ }
+
+  function vibrate(ms) {
+    if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* ignore */ } }
+  }
+
+  function bindDpad() {
+    const repeatMs = 150;
+    const activePointers = new Map(); // pointerId -> { btn, interval }
+
+    function pressStart(btn, pointerId) {
+      const dir = btn.dataset.dir;
+      btn.classList.add("pressed");
+      vibrate(6);
+      movePac(dir);
+      const interval = setInterval(() => movePac(dir), repeatMs);
+      activePointers.set(pointerId, { btn, interval });
+    }
+    function pressEnd(pointerId) {
+      const entry = activePointers.get(pointerId);
+      if (!entry) return;
+      clearInterval(entry.interval);
+      entry.btn.classList.remove("pressed");
+      activePointers.delete(pointerId);
+    }
+
+    dpad.querySelectorAll(".dpad-btn").forEach((btn) => {
+      btn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        btn.setPointerCapture(e.pointerId);
+        pressStart(btn, e.pointerId);
+      });
+      btn.addEventListener("pointerup", (e) => pressEnd(e.pointerId));
+      btn.addEventListener("pointercancel", (e) => pressEnd(e.pointerId));
+      btn.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") pressEnd(e.pointerId); });
+      btn.addEventListener("contextmenu", (e) => e.preventDefault());
+    });
+  }
+  bindDpad();
+
+  /* ---------- swipe gestures (mobile) ----------
+     Lets players flick anywhere on the maze to move, alongside the D-pad. */
+  function bindSwipe() {
+    let sx = 0, sy = 0, tracking = false;
+    const threshold = 24;
+    boardWrap.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
+    }, { passive: true });
+    boardWrap.addEventListener("touchend", (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
+      const dir = Math.abs(dx) > Math.abs(dy)
+        ? (dx > 0 ? "ArrowRight" : "ArrowLeft")
+        : (dy > 0 ? "ArrowDown" : "ArrowUp");
+      vibrate(6);
+      movePac(dir);
+    }, { passive: true });
+  }
+  bindSwipe();
+
+  // Stop iOS/Android pull-to-refresh and rubber-banding while a game is in progress.
+  document.addEventListener("touchmove", (e) => {
+    if (!game.classList.contains("hidden")) e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener("keydown", (e) => {
+    const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+    if (!keys.includes(e.key)) return;
+    if (game.classList.contains("hidden")) return;
+    if (inputLock) return;
+    e.preventDefault();
+    movePac(e.key);
+  });
+
+  window.addEventListener("resize", () => {
+    if (!game.classList.contains("hidden")) { computeCellSize(); renderBoard(); draw(); }
+  });
+
+  /* ---------- menu / buttons ---------- */
+  document.getElementById("easyBtn").onclick = () => startGame("easy");
+  document.getElementById("hardBtn").onclick = () => startGame("hard");
+
+  continueBtn.onclick = () => {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    try { startGame(JSON.parse(raw).mode, JSON.parse(raw)); }
+    catch (e) { localStorage.removeItem(SAVE_KEY); }
+  };
+
+  saveBtn.onclick = () => {
+    const snapshot = { score, level, lives, mode, ghostSpeed, collectedDots, layout, pacPos, ghosts };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+    flashButton(saveBtn, "✅ Saved");
+  };
+  function flashButton(btn, text) {
+    const original = btn.innerHTML;
+    btn.innerHTML = text;
+    setTimeout(() => (btn.innerHTML = original), 1100);
+  }
+
+  restartBtn.onclick = () => {
+    clearInterval(ghostTimer);
+    buildLayout();
+    renderBoard();
+    placePacAndGhosts();
+    collectedDots = 0;
+    ghostTimer = setInterval(moveGhosts, ghostSpeed);
+  };
+
+  resetBtn.onclick = () => {
+    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(BEST_KEY);
+    updateBest();
+    continueBtn.classList.add("hidden");
+    flashButton(resetBtn, "🧹 Cleared");
+  };
+
+  menuBtn.onclick = goToMenu;
+  pauseBtn.onclick = () => { paused = true; pauseBtn.classList.add("hidden"); resumeBtn.classList.remove("hidden"); };
+  resumeBtn.onclick = () => { paused = false; resumeBtn.classList.add("hidden"); pauseBtn.classList.remove("hidden"); };
+
+  function goToMenu() {
+    clearInterval(ghostTimer);
+    game.classList.add("hidden");
+    menu.classList.remove("hidden");
+    overlay.classList.add("hidden");
+    dpad.classList.add("hidden");
+    updateBest();
+    refreshContinueButton();
+  }
+
+  function refreshContinueButton() {
+    const raw = localStorage.getItem(SAVE_KEY);
+    continueBtn.classList.toggle("hidden", !raw);
+  }
+
+  /* ---------- boot ---------- */
+  updateBest();
+  refreshContinueButton();
+})();
+
+  </script>
+</body>
+</html>
